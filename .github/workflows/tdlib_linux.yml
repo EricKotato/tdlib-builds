@@ -1,0 +1,68 @@
+name: TDLib (Ubuntu 14)
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Commit, branch or tag of Telegram Bot API to checkout'
+        required: false
+        default: ''
+      openssl:
+        description: 'Commit, branch or tag of OpenSSL to checkout (empty = use system)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    container:
+      image: ubuntu:trusty
+
+    steps:
+      - name: Install packages
+        run: |
+          sudo apt install -y software-properties-common
+          sudo add-apt-repository ppa:git-core/ppa
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php5-cli cmake3 g++-4.9
+      - name: Clone TDLib
+        uses: actions/checkout@v2
+        with: 
+          repository: tdlib/td
+          ref: ${{ github.event.inputs.commit }}
+      - name: Clone OpenSSL
+        if: ${{ github.event.inputs.openssl != '' }}
+        uses: actions/checkout@v2
+        with: 
+          repository: openssl/openssl
+          ref: ${{ github.event.inputs.openssl }}
+          path: openssl_repo
+      - name: Build OpenSSL
+        if: ${{ github.event.inputs.openssl != '' }}
+        env:
+          CC: /usr/bin/gcc-4.9
+          CXX: /usr/bin/g++-4.9
+        run: |
+          cd openssl_repo
+          ./config no-tests
+          make -j$(nproc)
+          sudo make install_sw
+      - name: Configure
+        env:
+          CC: /usr/bin/gcc-4.9
+          CXX: /usr/bin/g++-4.9
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=../tdlib ..
+      - name: Build and install
+        run: |
+          cd build
+          cmake --build . --target install
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: TDLib
+          path: tdlib

@@ -1,0 +1,73 @@
+name: Telegram Bot API server (Ubuntu 14)
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Commit, branch or tag of Telegram Bot API to checkout'
+        required: false
+        default: ''
+      openssl:
+        description: 'Commit, branch or tag of OpenSSL to checkout (empty = use system)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    container:
+      image: ubuntu:trusty
+
+    steps:
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt install -y software-properties-common
+          sudo add-apt-repository ppa:git-core/ppa
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf cmake3 clang-3.9 libc++-dev
+      - name: Clone Telegram Bot API
+        uses: actions/checkout@v2
+        with: 
+          repository: tdlib/telegram-bot-api
+          ref: ${{ github.event.inputs.commit }}
+          submodules: recursive
+      - name: Clone OpenSSL
+        if: ${{ github.event.inputs.openssl != '' }}
+        uses: actions/checkout@v2
+        with: 
+          repository: openssl/openssl
+          ref: ${{ github.event.inputs.openssl }}
+          path: openssl_repo
+      - name: Build OpenSSL
+        if: ${{ github.event.inputs.openssl != '' }}
+        env:
+          CC: /usr/bin/clang-3.9
+          CXX: /usr/bin/clang++-3.9
+          CXXFLAGS: "-stdlib=libc++"
+        run: |
+          cd openssl_repo
+          ./config no-tests
+          make -j$(nproc)
+          sudo make install
+      - name: Configure
+        env:
+          CC: /usr/bin/clang-3.9
+          CXX: /usr/bin/clang++-3.9
+          CXXFLAGS: "-stdlib=libc++"
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=../tgbotapi ..
+      - name: Build and install
+        run: |
+          cd build
+          cmake --build . --target install
+      - name: Package artifact
+        run: tar -caf telegram-bot-api.tar.xz tgbotapi/*
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: Telegram Bot API
+          path: telegram-bot-api.tar.xz

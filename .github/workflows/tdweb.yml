@@ -1,0 +1,75 @@
+name: TDWeb
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Commit, branch or tag of Telegram Bot API to checkout'
+        required: false
+        default: ''
+      emsdk:
+        description: 'Version of Emscripten SDK to use'
+        required: true
+        default: '1.39.5'
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v2
+        with:
+          repository: tdlib/td
+          ref: ${{ github.event.inputs.commit }}
+
+      - name: Installing dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install libssl-dev zlib1g-dev gperf -y
+
+      - name: Install Emscripten
+        shell: bash
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install ${{ github.event.inputs.emsdk }}
+          ./emsdk activate ${{ github.event.inputs.emsdk }}
+
+      - name: Building OpenSSL
+        shell: bash
+        run: |
+          source emsdk/emsdk_env.sh
+          cd example/web
+          ./build-openssl.sh
+
+      - name: Building TDLib
+        shell: bash
+        run: |
+          source emsdk/emsdk_env.sh
+          cd example/web
+          ./build-tdlib.sh
+
+      - name: Moving TDLib files
+        shell: bash
+        run: |
+          source emsdk/emsdk_env.sh
+          cd example/web
+          mkdir -p tdweb/src/prebuilt/release/
+          mv build/wasm/td_wasm.js build/wasm/td_wasm.wasm tdweb/src/prebuilt/release/
+          mv build/asmjs/td_asmjs.js build/asmjs/td_asmjs.js.mem tdweb/src/prebuilt/release/
+
+      - name: Building TDWeb
+        shell: bash
+        run: |
+          source emsdk/emsdk_env.sh
+          cd example/web
+          ./build-tdweb.sh
+
+      - uses: actions/upload-artifact@master
+        name: Upload artifact
+        with:
+          name: TDWeb
+          path: example/web/tdweb/dist
