@@ -4,11 +4,17 @@ Custom builds of TDLib and Telegram Bot API server using manual `workflow_dispat
 
 Current builds:
 
-* TDLib
-  * Windows
+* TDLib with tg_cli
+  * Windows (x86/x64)
   * Ubuntu 14
 * Telegram Bot API server
   * Ubuntu 14
+
+Tested, but not working yet:
+* TDLight
+  * Windows x86
+  * Ubuntu 14
+* TDWeb
 
 ## Notes
 
