@@ -1,0 +1,41 @@
+name: TDLib (Windows x64)
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Commit, branch or tag to checkout'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: windows-latest
+    name: Build
+
+    steps:
+      - name: Install packages
+        run: |
+          vcpkg install gperf:x64-windows openssl:x64-windows zlib:x64-windows
+      - name: Clone TDLib
+        uses: actions/checkout@v2
+        with: 
+          repository: tdlib/td
+          ref: ${{ github.event.inputs.commit }}
+      - name: Configure
+        shell: cmd
+        run: |
+          mkdir build
+          cd build
+          call "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+          cmake -A x64 -DCMAKE_INSTALL_PREFIX:PATH=../tdlib -DCMAKE_TOOLCHAIN_FILE:FILEPATH=C:/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+      - name: Build and install
+        shell: cmd
+        run: |
+          cd build
+          cmake --build . --target install --config Release
+          copy Release\tg_cli.exe ..\tdlib\bin
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: TDLib
+          path: tdlib
