@@ -61,8 +61,12 @@ jobs:
         run: |
           cd build
           cmake --build . --target install
+          mkdir ../tdlib/bin
+          cp tg_cli ../tdlib/bin
+      - name: Package artifact
+        run: tar -caf tdlib.tar.xz tdlib/*
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: TDLib
-          path: tdlib
+          path: tdlib.tar.xz

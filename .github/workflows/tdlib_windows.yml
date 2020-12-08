@@ -29,9 +29,11 @@ jobs:
           call "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars32.bat"
           cmake -A Win32 -DCMAKE_INSTALL_PREFIX:PATH=../tdlib -DCMAKE_TOOLCHAIN_FILE:FILEPATH=C:/vcpkg/scripts/buildsystems/vcpkg.cmake ..
       - name: Build and install
+        shell: cmd
         run: |
           cd build
           cmake --build . --target install --config Release
+          copy Release\tg_cli.exe ..\tdlib\bin
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
